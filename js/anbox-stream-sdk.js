@@ -3258,4 +3258,6 @@ class AnboxStreamGatewayConnector {
 
 window.AnboxStreamGatewayConnector = AnboxStreamGatewayConnector;
 window.AnboxStream = AnboxStream;
-export { AnboxStreamGatewayConnector, AnboxStream };
+window.AnboxSessionGateway = AnboxSessionGateway;
+
+export {AnboxStreamGatewayConnector, AnboxStream, AnboxSessionGateway};
