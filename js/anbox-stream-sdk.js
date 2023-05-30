@@ -74,6 +74,89 @@ function newError(msg, code) {
   return new Error(msg, options);
 }
 
+class AnboxSessionGateway {
+
+  _nullOrUndef(obj) {
+    return obj === null || obj === undefined;
+  }
+  /**
+   * Connector for the Anbox Session Gateway. If no connector is specified for
+   * the SDK, is used to list active sessions
+   * @param options {object}
+   * @param options.url {string} URL to the Stream Gateway. Must use http or https scheme
+   * @param options.authToken {string} Authentication token for the Stream Gateway
+   */
+  constructor(options) {
+    if (this._nullOrUndef(options)) throw Error("missing options");
+
+    if (this._nullOrUndef(options.url))
+      throw newError("missing url parameter", ANBOX_STREAM_SDK_ERROR_INVALID_ARGUMENT);
+
+    if (!options.url.includes("https") && !options.url.includes("http"))
+      throw newError("unsupported scheme", ANBOX_STREAM_SDK_ERROR_INVALID_ARGUMENT);
+
+    else if (options.url.endsWith("/")) options.url = options.url.slice(0, -1);
+
+    if (this._nullOrUndef(options.authToken))
+      throw newError("missing authToken parameter", ANBOX_STREAM_SDK_ERROR_INVALID_ARGUMENT);
+
+
+    this._options = options;
+  }
+  async activeSessionsId() {
+    const current = await this.sessionsList();
+    return current.sessions.filter(s => s.joinable && s.status === 'active')?.map(s => s.id);
+  }
+  async sessionsList() {
+    const rawResp = await fetch(this._options.url + "/1.0/sessions/", {
+      method: "GET",
+      headers: {
+        Accept: "application/json, text/plain, */*",
+        Authorization: "Macaroon root=" + this._options.authToken,
+        "Content-Type": "application/json",
+      }
+    });
+
+    if (rawResp === undefined || rawResp.status !== 200)
+      throw newError("Failed to create session", ANBOX_STREAM_SDK_ERROR_SESSION_FAILED);
+
+    const response = await rawResp.json();
+    if (response === undefined || response.status !== "success")
+      throw newError(response.error, ANBOX_STREAM_SDK_ERROR_SESSION_FAILED);
+    const sessions = [];
+    for(let i=0;i<response.metadata.length; i++){
+      const session = await this.sessionDetail(response.metadata[i])
+      sessions.push(session);
+    }
+
+    return {
+      total_size: response.total_size,
+      sessions: sessions
+    };
+  }
+
+  async sessionDetail(sessionId) {
+    const rawResp = await fetch(this._options.url + "/1.0/sessions/"+sessionId+"/", {
+      method: "GET",
+      headers: {
+        Accept: "application/json, text/plain, */*",
+        Authorization: "Macaroon root=" + this._options.authToken,
+        "Content-Type": "application/json",
+      }
+    });
+
+    if (rawResp === undefined || rawResp.status !== 200)
+      throw newError("Failed to create session", ANBOX_STREAM_SDK_ERROR_SESSION_FAILED);
+
+    const response = await rawResp.json();
+    if (response === undefined || response.status !== "success")
+      throw newError(response.error, ANBOX_STREAM_SDK_ERROR_SESSION_FAILED);
+
+    return response.metadata;
+
+  }
+
+}
 
 class AnboxStream {
   /**
