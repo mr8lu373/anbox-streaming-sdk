@@ -74,11 +74,13 @@ function newError(msg, code) {
   return new Error(msg, options);
 }
 
+// FR ========================================================================
 class AnboxSessionGateway {
 
   _nullOrUndef(obj) {
     return obj === null || obj === undefined;
   }
+
   /**
    * Connector for the Anbox Session Gateway. If no connector is specified for
    * the SDK, is used to list active sessions
@@ -103,10 +105,16 @@ class AnboxSessionGateway {
 
     this._options = options;
   }
-  async activeSessionsId() {
+
+  async listActiveSessionsId(app=null, region=null, version=null) {
     const current = await this.sessionsList();
-    return current.sessions.filter(s => s.joinable && s.status === 'active')?.map(s => s.id);
+    return current.sessions.filter(s => s.joinable && s.status === 'active'
+      && (!app || s.app===app)
+      && (!region || s.region===region)
+      && (!version || s.version===version)
+    )?.map(s => s.id);
   }
+
   async sessionsList() {
     const rawResp = await fetch(this._options.url + "/1.0/sessions/", {
       method: "GET",
@@ -124,7 +132,7 @@ class AnboxSessionGateway {
     if (response === undefined || response.status !== "success")
       throw newError(response.error, ANBOX_STREAM_SDK_ERROR_SESSION_FAILED);
     const sessions = [];
-    for(let i=0;i<response.metadata.length; i++){
+    for (let i = 0; i < response.metadata.length; i++) {
       const session = await this.sessionDetail(response.metadata[i])
       sessions.push(session);
     }
@@ -136,7 +144,7 @@ class AnboxSessionGateway {
   }
 
   async sessionDetail(sessionId) {
-    const rawResp = await fetch(this._options.url + "/1.0/sessions/"+sessionId+"/", {
+    const rawResp = await fetch(this._options.url + "/1.0/sessions/" + sessionId + "/", {
       method: "GET",
       headers: {
         Accept: "application/json, text/plain, */*",
@@ -158,6 +166,7 @@ class AnboxSessionGateway {
 
 }
 
+// FR end ====================================================================
 class AnboxStream {
   /**
    * AnboxStream creates a connection between your client and an Android instance and
@@ -312,6 +321,8 @@ class AnboxStream {
       this._stopStreamingOnError(e);
       return;
     }
+    // FR
+    return session;
   }
 
   /**
@@ -580,16 +591,20 @@ class AnboxStream {
     if (this._nullOrUndef(options.callbacks)) options.callbacks = {};
 
     if (this._nullOrUndef(options.callbacks.ready))
-      options.callbacks.ready = () => {};
+      options.callbacks.ready = () => {
+      };
 
     if (this._nullOrUndef(options.callbacks.error))
-      options.callbacks.error = () => {};
+      options.callbacks.error = () => {
+      };
 
     if (this._nullOrUndef(options.callbacks.done))
-      options.callbacks.done = () => {};
+      options.callbacks.done = () => {
+      };
 
     if (this._nullOrUndef(options.callbacks.messageReceived))
-      options.callbacks.messageReceived = () => {};
+      options.callbacks.messageReceived = () => {
+      };
 
     if (this._nullOrUndef(options.callbacks.requestCameraAccess))
       options.callbacks.requestCameraAccess = () => false;
@@ -656,8 +671,7 @@ class AnboxStream {
       throw newError(
         `target element "${options.targetElement}" does not exist`,
         ANBOX_STREAM_SDK_ERROR_INVALID_ARGUMENT);
-    }
-    else if (container.clientWidth == 0 || container.clientHeight == 0)
+    } else if (container.clientWidth == 0 || container.clientHeight == 0)
       console.error(
         "AnboxStream: video container element misses size. Please see https://anbox-cloud.io/docs/howto/stream/web-client"
       );
@@ -940,7 +954,7 @@ class AnboxStream {
       return false;
     }
 
-    const data = { orientation: orientation };
+    const data = {orientation: orientation};
     if (
       !this._webrtcManager.sendControlMessage(
         "screen::change_orientation",
@@ -1475,7 +1489,7 @@ class AnboxStream {
       throw newError("sdk is not ready yet", ANBOX_STREAM_SDK_ERROR_INTERNAL);
     }
 
-    if (this._currentRotation === 0) return { x: x, y: y };
+    if (this._currentRotation === 0) return {x: x, y: y};
 
     let radians = (Math.PI / 180) * this._currentRotation,
       cos = Math.cos(radians),
@@ -1950,14 +1964,20 @@ class AnboxWebRTCManager {
     this._fallbackApiVersion = options.fallbackApiVersion;
     this._apiVersionInUse = options.apiVersion
 
-    this._onError = () => {};
-    this._onReady = () => {};
-    this._onClose = () => {};
+    this._onError = () => {
+    };
+    this._onReady = () => {
+    };
+    this._onClose = () => {
+    };
     this._onMicRequested = () => false;
     this._onCameraRequested = () => false;
-    this._onMessage = () => {};
-    this._onStatsUpdated = () => {};
-    this._onIMEStateChanged = () => {};
+    this._onMessage = () => {
+    };
+    this._onStatsUpdated = () => {
+    };
+    this._onIMEStateChanged = () => {
+    };
   }
 
   /**
@@ -2396,11 +2416,11 @@ class AnboxWebRTCManager {
       if (this._controlChan !== null) {
         let code = ANBOX_STREAM_SDK_ERROR_WEBRTC_CONTROL_FAILED;
         switch (err.error.sctpCauseCode) {
-        case SCP_CAUSE_CODE_USER_INITIATED_ABORT:
-          code = ANBOX_STREAM_SDK_ERROR_WEBRTC_DISCONNECTED;
-          break;
-        default:
-          break;
+          case SCP_CAUSE_CODE_USER_INITIATED_ABORT:
+            code = ANBOX_STREAM_SDK_ERROR_WEBRTC_DISCONNECTED;
+            break;
+          default:
+            break;
         }
         this._onError(`error on control channel: ${err.error.message}`, code);
       }
@@ -2470,7 +2490,7 @@ class AnboxWebRTCManager {
         if (this._apiVersionInUse > msg.max_api_version) {
           if (this._fallbackApiVersion > msg.max_api_version) {
             this._onError("API version not supported by server",
-            ANBOX_STREAM_SDK_ERROR_INVALID_ARGUMENT);
+              ANBOX_STREAM_SDK_ERROR_INVALID_ARGUMENT);
             return;
           }
           this._apiVersionInUse = this._fallbackApiVersion;
@@ -2479,7 +2499,7 @@ class AnboxWebRTCManager {
         this._sendSettings();
         break;
       case "offer":
-        /* fallthrough */
+      /* fallthrough */
       case "answer": {
         const sdp = atob(msg.sdp);
         this._log(`got RTC ${msg.type}:\n${sdp}`);
@@ -2513,7 +2533,7 @@ class AnboxWebRTCManager {
         // as older Anbox versions respond with that error for unknown signaling
         // message types
         if (this._discoverTimeout !== null &&
-            msg.code == ANBOX_STREAM_SIGNALING_ERROR_BAD_REQUEST) {
+          msg.code == ANBOX_STREAM_SIGNALING_ERROR_BAD_REQUEST) {
           this._stopDiscoverTimeout();
           this._useApiFallback();
           return;
@@ -2901,7 +2921,7 @@ class AnboxWebRTCManager {
         const elapsedInSec = Math.round(
           (report.timestamp -
             (this._lastReport.video?.timestamp || report.timestamp - 1000)) /
-            1000.0
+          1000.0
         );
         v.bandwidthMbit = bytes_to_mbits(
           report.bytesReceived - (this._lastReport.video?.bytesReceived || 0),
@@ -2923,11 +2943,11 @@ class AnboxWebRTCManager {
           (report.timestamp -
             (this._lastReport.audioOutput?.timestamp ||
               report.timestamp - 1000)) /
-            1000.0
+          1000.0
         );
         a.bandwidthMbit = bytes_to_mbits(
           report.bytesReceived -
-            (this._lastReport.audioOutput?.bytesReceived || 0),
+          (this._lastReport.audioOutput?.bytesReceived || 0),
           elapsedInSec
         );
         a.totalBytesReceived = report.bytesReceived;
@@ -2945,7 +2965,7 @@ class AnboxWebRTCManager {
           (report.timestamp -
             (this._lastReport.audioInput?.timestamp ||
               report.timestamp - 1000)) /
-            1000.0
+          1000.0
         );
         a.bandwidthMbit = bytes_to_mbits(
           report.bytesSent - (this._lastReport.audioInput?.bytesSent || 0),
@@ -3253,11 +3273,11 @@ class AnboxStreamGatewayConnector {
   }
 
   // no-op
-  disconnect() {}
+  disconnect() {
+  }
 }
 
 window.AnboxStreamGatewayConnector = AnboxStreamGatewayConnector;
 window.AnboxStream = AnboxStream;
 window.AnboxSessionGateway = AnboxSessionGateway;
-
 export {AnboxStreamGatewayConnector, AnboxStream, AnboxSessionGateway};
